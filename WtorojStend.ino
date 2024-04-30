@@ -80,7 +80,7 @@ void setup() {
   planner.reset();
   */
 }
-// проверка ручного или автоматического режима
+// Проверка ручного или автоматического режима
 void loop() {
   if (startMove == true){
     rotationAuto();
@@ -97,7 +97,7 @@ void loop() {
 
 
 
-// ручное
+// Ручное
 void rotation() {
   int buttonsActive = (digitalRead(buttonRotationPlusA1) == HIGH) ? 1 : 0
     + (digitalRead(buttonRotationMinusA1) == HIGH) ? 1 : 0
@@ -202,7 +202,7 @@ void moveToHome() {
 
 
 
-    // число значений в массиве, который хотим получить
+    // Число значений в массиве, который хотим получить
 int parsingData[257] = new int [257];         // Массив численных значений после парсинга
 boolean recievedFlag = false;
 boolean getStarted = false;
@@ -235,12 +235,37 @@ void parsing() {
 
 SoftwareSerial uart(UART_RX, UART_TX);        // Создание объекта UART
 void setup() {
-  uart.begin(9600);                           // Инициализация UART со скоростью 9600 бит/с (можно и другую скорость)
+  uart.begin(9600);                           // Инициализация данных ... UART со скоростью 9600 бит/с (можно и другую скорость) между модулем и Arduino
+  Serial.begin(9600);                         // Инициализация данных ... между Arduino и компьтером (нужно будет выбрать скорость)
 }
 
 void UART() {
- if (uart.available() > 0) {
+ if (uart.available() ) {                     // Если есть данные в серийном порту
   char incommingByte = uart.read();           // Чтение первого байта из UART и сохранение в incommingByte
   parsing(incomingByte);                      // Передача символа в функцию парсинга и по идее дальше то же самое, что и выше ╮(￣～￣)╭
- }
+  if (getStarted) {                           // Если приняли начальный символ (парсинг разрешён)
+      if (incomingByte != ' ' && incomingByte != ';') {   // Если это не пробел И не конец
+        string_convert += incomingByte;       // Складываем в строку
+      } else {                                // Если это пробел или ; конец пакета
+        parsingData[index] = string_convert.toInt();  // Преобразуем строку в int и кладём в массив
+        string_convert = "";                  // Очищаем строку
+        index++;                              // Переходим к парсингу следующего элемента массива
+      }
+    }
+    if (incomingByte == '$') {                // Если это $
+      getStarted = true;                      // Поднимаем флаг, что можно парсить
+      index = 0;                              // Сбрасываем индекс
+      string_convert = "";                    // Очищаем строку
+    }
+    if (incomingByte == ';') {                // Если таки приняли ; - конец парсинга
+      getStarted = false;                     // Сброс
+      recievedFlag = true;                    // Флаг на принятие
+    }
+  }
+  if (uart.available()) {
+    Serial.write(uart.read());                // Передача данных от модуля через Arduino к компьютеру
+  }
+  if (Serial.available()){
+    uart.write(Serial.read());                // Передача данных от компьютера через Arduino к модулю
+  }
 }
