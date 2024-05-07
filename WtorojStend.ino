@@ -20,13 +20,9 @@
 #define buttonRotationMinusA3 16
 #define buttonRotationPlusA4 17
 #define buttonRotationMinusA4 18
-#define UART_RX 19
-#define UART_TX 20
-#define EEPROM_POSITION1 0
-#define EEPROM_POSITION2 1
-#define EEPROM_POSITION3 2
-#define EEPROM_POSITION4 3
-//#define PowerPin пин, отслеживающий состояиние питания 
+#define UART 19
+
+ 
 
 int pins[4][3] = {
   { 0, 1, 6 },
@@ -87,10 +83,6 @@ void loop() {
   }
   else {
     rotation();
-  }
-  // Проверка на выключение системы
-  if (digitalRead(PowerPin) == LOW){
-    moweToHome();                                // Возвращение домой при выключении
   }
 }
 
@@ -171,6 +163,8 @@ void Program(){
 
 }
 
+void record();
+
 // Функция дома
 void moveToHome() {
   while (true) {
@@ -194,16 +188,16 @@ void moveToHome() {
     }
   }
   // Сохраняем позиции дома в EEPROM
-  for (int i = 0; i < 4; i++) {
-    EEPROM.write(EEPROM_POSITION1 + 1, positionsDrivers[i]);
-  }
- EEPROM.commit(); // Функция, которая гарантирует, что все изменения будут сохранены перед выключением питания
+ // for (int i = 0; i < 4; i++) {
+  //  EEPROM.write(EEPROM_POSITION1 + 1, positionsDrivers[i]);
+  //}
+ // EEPROM.commit(); // Функция, которая гарантирует, что все изменения будут сохранены перед выключением питания
 }
 
 
 
     // Число значений в массиве, который хотим получить
-int parsingData[257] = new int [257];         // Массив численных значений после парсинга
+int parsingData[257] = new int [257];                                            // Массив численных значений после парсинга
 boolean recievedFlag = false;
 boolean getStarted = false;
 byte index = 0;
@@ -211,61 +205,33 @@ String string_convert = "";
 
 void parsing() {
   if (Serial.available() > 0) {
-    char incomingByte = Serial.read();        // Обязательно ЧИТАЕМ входящий символ
-    if (getStarted) {                         // Если приняли начальный символ (парсинг разрешён)
-      if (incomingByte != ' ' && incomingByte != ';') {   // Если это не пробел И не конец
-        string_convert += incomingByte;       // Складываем в строку
-      } else {                                // Если это пробел или ; конец пакета
-        parsingData[index] = string_convert.toInt();  // Преобразуем строку в int и кладём в массив
-        string_convert = "";                  // Очищаем строку
-        index++;                              // Переходим к парсингу следующего элемента массива
+    char incomingByte = Serial.read();                                           // Обязательно ЧИТАЕМ входящий символ
+    if (getStarted) {                                                            // Если приняли начальный символ (парсинг разрешён)
+      if (incomingByte != ' ' && incomingByte != ';' && incomingByte != 'h' && incomingByte != 'r' && incomingByte != 'm') {   // Если это не пробел И не конец
+        string_convert += incomingByte;                                          // Складываем в строку
+      } else {                                                                   // Если это пробел или ';' конец пакета
+        parsingData[index] = string_convert.toInt();                             // Преобразуем строку в int и кладём в массив
+        string_convert = "";                                                     // Очищаем строку
+        index++;                                                                 // Переходим к парсингу следующего элемента массива
       }
     }
-    if (incomingByte == '$') {                // Если это $
-      getStarted = true;                      // Поднимаем флаг, что можно парсить
-      index = 0;                              // Сбрасываем индекс
-      string_convert = "";                    // Очищаем строку
+    if (incomingByte == '$') {                                                   // Если это '$'
+      getStarted = true;                                                         // Поднимаем флаг, что можно парсить
+      index = 0;                                                                 // Сбрасываем индекс
+      string_convert = "";                                                       // Очищаем строку
     }
-    if (incomingByte == ';') {                // Если таки приняли ; - конец парсинга
-      getStarted = false;                     // Сброс
-      recievedFlag = true;                    // Флаг на принятие
+    if (incomingByte == ';') {                                                   // Если таки приняли ';'- конец парсинга
+      getStarted = false;                                                        // Сброс
+      recievedFlag = true;                                                       // Флаг на принятие
     }
+    if (incomingByte == 'h') {                                                   // Если это 'h'                                   
+      moveToHome();                                                              // Вызов функции дома
+    }
+    if (incomingByte == 'r') {
+      record();
+    }
+    
   }
 }
 
-SoftwareSerial uart(UART_RX, UART_TX);        // Создание объекта UART
-void setup() {
-  uart.begin(9600);                           // Инициализация данных ... UART со скоростью 9600 бит/с (можно и другую скорость) между модулем и Arduino
-  Serial.begin(9600);                         // Инициализация данных ... между Arduino и компьтером (нужно будет выбрать скорость)
-}
 
-void UART() {
- if (uart.available() ) {                     // Если есть данные в серийном порту
-  char incommingByte = uart.read();           // Чтение первого байта из UART и сохранение в incommingByte
-  parsing(incomingByte);                      // Передача символа в функцию парсинга и по идее дальше то же самое, что и выше ╮(￣～￣)╭
-  if (getStarted) {                           // Если приняли начальный символ (парсинг разрешён)
-      if (incomingByte != ' ' && incomingByte != ';') {   // Если это не пробел И не конец
-        string_convert += incomingByte;       // Складываем в строку
-      } else {                                // Если это пробел или ; конец пакета
-        parsingData[index] = string_convert.toInt();  // Преобразуем строку в int и кладём в массив
-        string_convert = "";                  // Очищаем строку
-        index++;                              // Переходим к парсингу следующего элемента массива
-      }
-    }
-    if (incomingByte == '$') {                // Если это $
-      getStarted = true;                      // Поднимаем флаг, что можно парсить
-      index = 0;                              // Сбрасываем индекс
-      string_convert = "";                    // Очищаем строку
-    }
-    if (incomingByte == ';') {                // Если таки приняли ; - конец парсинга
-      getStarted = false;                     // Сброс
-      recievedFlag = true;                    // Флаг на принятие
-    }
-  }
-  if (uart.available()) {
-    Serial.write(uart.read());                // Передача данных от модуля через Arduino к компьютеру
-  }
-  if (Serial.available()){
-    uart.write(Serial.read());                // Передача данных от компьютера через Arduino к модулю
-  }
-}
